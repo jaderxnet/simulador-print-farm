@@ -30,7 +30,7 @@ O teste de estresse sempre usa tempo de relógio, pois seu objetivo é justament
 
 ## Como usar
 
-1. Acesse [GitHub Pages](https://github.com/jaderxnet/simulador-print-farm).
+1. Acesse [GitHub Pages](https://jaderxnet.github.io/simulador-print-farm/) ou baixe 'index.html.
 2. Abra o arquivo em qualquer navegador moderno (duplo clique).
 3. Ajuste os parâmetros no painel à esquerda.
 4. Clique em **Executar testes** para os quatro gráficos, ou em **Rodar teste de estresse (DP)** para o teste de limite.
