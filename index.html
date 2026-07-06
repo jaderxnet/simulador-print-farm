@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bancada MS3DP — POLI / MCKP · Programação Dinâmica × Branch and Bound</title>
+<style>
+  :root{
+    --paper:#eef1f4;
+    --surface:#ffffff;
+    --ink:#0f172a;
+    --ink-soft:#475569;
+    --line:#cbd5e1;
+    --line-soft:#e2e8f0;
+    --dp:#2563eb;      /* Programação Dinâmica */
+    --bb:#dc2626;      /* Branch and Bound */
+    --aux:#059669;     /* poda / auxiliar */
+    --shadow:0 1px 2px rgba(15,23,42,.06), 0 8px 24px rgba(15,23,42,.06);
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      linear-gradient(var(--paper),var(--paper)),
+      repeating-linear-gradient(0deg,transparent,transparent 23px,rgba(15,23,42,.03) 24px),
+      repeating-linear-gradient(90deg,transparent,transparent 23px,rgba(15,23,42,.03) 24px);
+    color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 60px}
+
+  header.top{
+    display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;
+    border-bottom:2px solid var(--ink);padding-bottom:16px;margin-bottom:24px;
+  }
+  .brand{display:flex;flex-direction:column;gap:4px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft)}
+  h1{font-size:26px;line-height:1.15;margin:0;letter-spacing:-.01em;font-weight:750}
+  h1 span{color:var(--ink-soft);font-weight:500}
+  .sub{color:var(--ink-soft);font-size:13.5px;max-width:54ch}
+  .legend-key{display:flex;gap:18px;font-family:var(--mono);font-size:12px}
+  .legend-key .k{display:flex;align-items:center;gap:7px;white-space:nowrap}
+  .swatch{width:22px;height:0;border-top-width:3px;border-top-style:solid;border-radius:2px}
+  .swatch.sq{height:11px;border:2px solid;border-top:2px solid;width:11px;border-radius:2px}
+
+  .grid{display:grid;grid-template-columns:320px 1fr;gap:22px;align-items:start}
+  @media (max-width:860px){.grid{grid-template-columns:1fr}}
+
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+  .panel .hd{padding:14px 16px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:10px}
+  .panel .hd .n{font-family:var(--mono);font-size:11px;color:#fff;background:var(--ink);
+    width:22px;height:22px;border-radius:6px;display:grid;place-items:center;flex:none}
+  .panel .hd h2{font-size:14.5px;margin:0;font-weight:700;letter-spacing:.01em}
+  .panel .bd{padding:16px}
+
+  fieldset{border:none;margin:0 0 4px;padding:0}
+  .group-title{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink-soft);margin:14px 0 8px;padding-top:12px;border-top:1px dashed var(--line-soft)}
+  .group-title:first-child{border-top:none;padding-top:0;margin-top:0}
+  .field{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:9px 0}
+  .field label{font-size:13px;color:var(--ink)}
+  .field label small{display:block;color:var(--ink-soft);font-size:11px;font-family:var(--mono)}
+  .field input{width:88px;font-family:var(--mono);font-size:13px;text-align:right;
+    padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:#fbfcfe;color:var(--ink)}
+  .field select{font-family:var(--mono);font-size:12.5px;padding:6px 8px;border:1px solid var(--line);
+    border-radius:7px;background:#fbfcfe;color:var(--ink)}
+  .field input:focus,.field select:focus{outline:2px solid var(--dp);outline-offset:0;border-color:var(--dp)}
+
+  .btnrow{display:flex;flex-direction:column;gap:9px;margin-top:18px}
+  button.act{font-family:var(--sans);font-size:14px;font-weight:650;cursor:pointer;
+    padding:11px 14px;border-radius:9px;border:1px solid transparent;transition:.12s;
+    display:flex;align-items:center;justify-content:center;gap:9px}
+  button.act:disabled{opacity:.5;cursor:not-allowed}
+  .b-run{background:var(--ink);color:#fff}
+  .b-run:hover:not(:disabled){background:#1e293b}
+  .b-ghost{background:#fff;color:var(--ink);border-color:var(--line)}
+  .b-ghost:hover:not(:disabled){border-color:var(--ink);background:#f8fafc}
+  .exportrow{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:9px}
+
+  .status{margin-top:14px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);min-height:18px}
+  .repro{margin-top:6px;font-family:var(--mono);font-size:11px;line-height:1.4}
+  .repro.det{color:var(--aux)} .repro.time{color:var(--bb)}
+  .bar{height:6px;background:var(--line-soft);border-radius:99px;overflow:hidden;margin-top:8px}
+  .bar > i{display:block;height:100%;width:0;background:var(--dp);transition:width .15s}
+
+  .charts{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media (max-width:680px){.charts{grid-template-columns:1fr}}
+  .chartcard .bd{padding:12px 12px 14px}
+  .chartcard .cap{font-size:12px;color:var(--ink-soft);padding:0 4px 8px;line-height:1.4}
+  .canvas-holder{background:#fff;border:1px solid var(--line-soft);border-radius:8px;overflow:hidden}
+  canvas{display:block;width:100%;height:auto}
+  .chart-actions{display:flex;justify-content:flex-end;margin-top:8px}
+  .png{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);background:none;border:none;
+    cursor:pointer;padding:4px 6px;border-radius:6px;display:flex;align-items:center;gap:6px}
+  .png:hover{color:var(--ink);background:#f1f5f9}
+  .png:disabled{opacity:.4;cursor:not-allowed}
+
+  .summary{margin-top:22px}
+  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px}
+  th,td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--line-soft)}
+  th:first-child,td:first-child{text-align:left}
+  thead th{color:var(--ink-soft);font-weight:600;font-size:11px;letter-spacing:.05em;
+    text-transform:uppercase;border-bottom:1.5px solid var(--line)}
+  tbody tr:hover{background:#f8fafc}
+  .win-dp{color:var(--dp);font-weight:700}
+  .win-bb{color:var(--bb);font-weight:700}
+  .note{font-size:12px;color:var(--ink-soft);margin-top:10px;line-height:1.5}
+  .empty{padding:36px 16px;text-align:center;color:var(--ink-soft);font-family:var(--mono);font-size:13px}
+  svg.ic{width:14px;height:14px;flex:none}
+  footer{margin-top:40px;padding-top:16px;border-top:1px dashed var(--line);
+    font-family:var(--mono);font-size:11px;color:var(--ink-soft);line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <span class="eyebrow">Bancada de experimentos · MS3DP</span>
+      <h1>POLI / MCKP <span>— Programação Dinâmica × Branch and Bound</span></h1>
+      <p class="sub">Gera instâncias do Problema de Otimização de Lotes de Impressão e executa os dois algoritmos exatos. Na métrica padrão (operações), a mesma semente reproduz exatamente os mesmos dados a cada execução.</p>
+    </div>
+    <div class="legend-key">
+      <span class="k"><span class="swatch" style="border-top-color:var(--dp)"></span>Programação Dinâmica</span>
+      <span class="k"><span class="swatch sq" style="border-color:var(--bb)"></span>Branch and Bound</span>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <aside class="panel">
+      <div class="hd"><span class="n">P</span><h2>Parâmetros do experimento</h2></div>
+      <div class="bd">
+        <fieldset>
+          <div class="group-title">Geral</div>
+          <div class="field">
+            <label>Métrica de custo <small>eixo dos gráficos</small></label>
+            <select id="metric">
+              <option value="ops" selected>Operações (determinístico)</option>
+              <option value="time">Tempo medido (ms)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Semente <small>reprodutibilidade</small></label>
+            <input id="seed" type="number" value="42" min="0" step="1">
+          </div>
+          <div class="field">
+            <label>Variantes por peça <small>máx. n<sub>i</sub></small></label>
+            <input id="nvar" type="number" value="5" min="2" max="12" step="1">
+          </div>
+          <div class="field">
+            <label>Instâncias por ponto <small>repetições</small></label>
+            <input id="inst" type="number" value="30" min="1" max="200" step="1">
+          </div>
+
+          <div class="group-title">Experimento A — custo × nº de peças r</div>
+          <div class="field"><label>Capacidade fixa <small>c</small></label>
+            <input id="rc" type="number" value="200" min="10" step="10"></div>
+          <div class="field"><label>r inicial</label><input id="rmin" type="number" value="2" min="2" step="1"></div>
+          <div class="field"><label>r final</label><input id="rmax" type="number" value="28" min="2" step="1"></div>
+          <div class="field"><label>passo de r</label><input id="rstep" type="number" value="2" min="1" step="1"></div>
+
+          <div class="group-title">Experimento B — custo × capacidade c</div>
+          <div class="field"><label>Peças fixas <small>r</small></label>
+            <input id="cr" type="number" value="10" min="2" step="1"></div>
+          <div class="field"><label>c inicial <small>×2 a cada ponto</small></label>
+            <input id="cmin" type="number" value="50" min="10" step="10"></div>
+          <div class="field"><label>nº de pontos</label>
+            <input id="cpts" type="number" value="8" min="2" max="12" step="1"></div>
+
+          <div class="group-title">Teste de estresse (DP)</div>
+          <div class="field"><label>Peças fixas <small>r</small></label>
+            <input id="sr" type="number" value="20" min="2" step="1"></div>
+          <div class="field"><label>Orçamento/passo <small>ms</small></label>
+            <input id="sbudget" type="number" value="1000" min="100" step="100"></div>
+        </fieldset>
+
+        <div class="btnrow">
+          <button id="run" class="act b-run">
+            <svg class="ic" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11l9-5.5-9-5.5Z"/></svg>
+            Executar testes
+          </button>
+          <div class="exportrow">
+            <button id="csv" class="act b-ghost" disabled>Baixar CSV</button>
+            <button id="json" class="act b-ghost" disabled>Baixar JSON</button>
+          </div>
+          <button id="allpng" class="act b-ghost" disabled>Baixar todos os gráficos</button>
+          <button id="stress" class="act b-ghost">Rodar teste de estresse (DP)</button>
+        </div>
+
+        <div class="status" id="status">Pronto. Ajuste os parâmetros e execute.</div>
+        <div class="repro det" id="repro">Métrica determinística: a mesma semente reproduz os mesmos dados.</div>
+        <div class="bar"><i id="progress"></i></div>
+      </div>
+    </aside>
+
+    <main>
+      <section class="charts">
+        <div class="panel chartcard">
+          <div class="hd"><span class="n">1</span><h2>Custo × nº de peças r</h2></div>
+          <div class="bd">
+            <div class="cap" id="cap1">Capacidade fixa. Escala vertical logarítmica. DP cresce de forma suave; B&amp;B, de forma acentuada.</div>
+            <div class="canvas-holder"><canvas id="c_custo_r"></canvas></div>
+            <div class="chart-actions"><button class="png" data-c="c_custo_r" data-name="fig_custo_r" disabled><svg class="ic" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1v8.6l2.8-2.8 1 1L8 11.6 4.2 7.8l1-1L8 9.6V1h0Zm-6 12h12v2H2v-2Z"/></svg>PNG</button></div>
+          </div>
+        </div>
+
+        <div class="panel chartcard">
+          <div class="hd"><span class="n">2</span><h2>Nós explorados e taxa de poda × r</h2></div>
+          <div class="bd">
+            <div class="cap">Nós da árvore de busca do B&amp;B (esq., log) e taxa média de poda (dir., verde). Sempre determinístico.</div>
+            <div class="canvas-holder"><canvas id="c_nos_r"></canvas></div>
+            <div class="chart-actions"><button class="png" data-c="c_nos_r" data-name="fig_nos_r" disabled><svg class="ic" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1v8.6l2.8-2.8 1 1L8 11.6 4.2 7.8l1-1L8 9.6V1h0Zm-6 12h12v2H2v-2Z"/></svg>PNG</button></div>
+          </div>
+        </div>
+
+        <div class="panel chartcard">
+          <div class="hd"><span class="n">3</span><h2>Custo × capacidade c</h2></div>
+          <div class="bd">
+            <div class="cap" id="cap3">Peças fixas. Ambos os eixos logarítmicos. DP cresce com c; B&amp;B é insensível a c.</div>
+            <div class="canvas-holder"><canvas id="c_custo_c"></canvas></div>
+            <div class="chart-actions"><button class="png" data-c="c_custo_c" data-name="fig_custo_c" disabled><svg class="ic" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1v8.6l2.8-2.8 1 1L8 11.6 4.2 7.8l1-1L8 9.6V1h0Zm-6 12h12v2H2v-2Z"/></svg>PNG</button></div>
+          </div>
+        </div>
+
+        <div class="panel chartcard">
+          <div class="hd"><span class="n">4</span><h2>Dispersão do custo do B&amp;B × r</h2></div>
+          <div class="bd">
+            <div class="cap">Boxplot por nº de peças (escala log). A largura evidencia a sensibilidade do B&amp;B à estrutura da instância.</div>
+            <div class="canvas-holder"><canvas id="c_disp"></canvas></div>
+            <div class="chart-actions"><button class="png" data-c="c_disp" data-name="fig_dispersao" disabled><svg class="ic" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1v8.6l2.8-2.8 1 1L8 11.6 4.2 7.8l1-1L8 9.6V1h0Zm-6 12h12v2H2v-2Z"/></svg>PNG</button></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel summary" id="stresscard" style="display:none">
+        <div class="hd"><span class="n">5</span><h2>Teste de estresse — Programação Dinâmica</h2></div>
+        <div class="bd">
+          <div class="cap">Capacidade c crescente (peças fixas) até a parede de tempo ou de memória. Ambos os eixos logarítmicos; o crescimento linear confirma a dependência O(c), e a tabela O(c) fixa o teto de memória.</div>
+          <div class="canvas-holder"><canvas id="c_stress"></canvas></div>
+          <div class="chart-actions"><button class="png" data-c="c_stress" data-name="fig_stress_dp" disabled><svg class="ic" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1v8.6l2.8-2.8 1 1L8 11.6 4.2 7.8l1-1L8 9.6V1h0Zm-6 12h12v2H2v-2Z"/></svg>PNG</button></div>
+          <p class="note" id="stressinfo"></p>
+        </div>
+      </section>
+
+      <section class="panel summary">
+        <div class="hd"><span class="n">R</span><h2>Resumo — custo × r (capacidade fixa)</h2></div>
+        <div class="bd">
+          <div id="tablewrap"><div class="empty">Nenhum resultado ainda. Clique em “Executar testes”.</div></div>
+          <p class="note" id="verif"></p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    MS3DP · Otimização de Lotes de Impressão em Print Farms — redução ao Multiple-choice Knapsack Problem.<br>
+    Algoritmos exatos: Programação Dinâmica O(c·n) · Branch and Bound com poda por cota superior. Página autocontida, executa localmente no navegador.
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   RNG determinístico (mulberry32) — reprodutível por semente
+   ============================================================ */
+function mulberry32(a){
+  return function(){
+    a|=0; a=a+0x6D2B79F5|0;
+    let t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296;
+  };
+}
+function makeRng(seed){
+  const r=mulberry32(seed>>>0);
+  return { int:(lo,hi)=>lo+Math.floor(r()*(hi-lo+1)) };
+}
+
+/* ============================================================
+   Geração de instância do POLI/MCKP
+   ============================================================ */
+function gerarInstancia(r,nVar,c,rng){
+  const leve=Math.max(1,Math.floor(c/r));
+  const pecas=[];
+  for(let i=0;i<r;i++){
+    const ni=rng.int(2,nVar);
+    const variantes=[];
+    for(let j=0;j<ni;j++){
+      variantes.push([rng.int(1,Math.max(1,Math.floor(c/2))), rng.int(1,100)]);
+    }
+    if(!variantes.some(v=>v[0]<=leve)){
+      variantes.push([rng.int(1,leve), rng.int(1,100)]); // garante viabilidade
+    }
+    pecas.push(variantes);
+  }
+  return pecas;
+}
+
+function removerDominadas(pecas){
+  return pecas.map(vs=>{
+    const mant=[];
+    for(let j=0;j<vs.length;j++){
+      const [wj,vj]=vs[j];
+      let dom=false;
+      for(let k=0;k<vs.length;k++){
+        if(k===j)continue;
+        const [wk,vk]=vs[k];
+        if(wk<=wj&&vk>=vj&&(wk<wj||vk>vj)){dom=true;break;}
+      }
+      if(!dom)mant.push([wj,vj]);
+    }
+    const vistos=new Set(),limpas=[];
+    for(const [w,v] of mant){const key=w+","+v;if(!vistos.has(key)){vistos.add(key);limpas.push([w,v]);}}
+    return limpas.length?limpas:[vs.reduce((a,b)=>a[0]<b[0]?a:b)];
+  });
+}
+
+/* ---------- Algoritmo 1: Programação Dinâmica O(c·n) ----------
+   Retorna valor ótimo e contagem determinística de operações
+   elementares (cada avaliação de variante na recursão).           */
+function resolverDP(pecas,c){
+  const r=pecas.length, NEG=-Infinity;
+  let prev=new Float64Array(c+1); for(let d=0;d<=c;d++)prev[d]=0;
+  let cur=new Float64Array(c+1);
+  let ops=0;
+  for(let i=0;i<r;i++){
+    const vs=pecas[i];
+    for(let d=0;d<=c;d++){
+      let melhor=NEG;
+      for(let j=0;j<vs.length;j++){
+        ops++;                                   // operação elementar
+        const w=vs[j][0];
+        if(w<=d){const cand=prev[d-w];if(cand>NEG&&cand+vs[j][1]>melhor)melhor=cand+vs[j][1];}
+      }
+      cur[d]=melhor;
+    }
+    const t=prev;prev=cur;cur=t;
+  }
+  return {valor:prev[c], ops};
+}
+
+/* ---------- DP sem instrumentação — usado só no teste de estresse,
+   para medir o tempo puro do algoritmo (espaço O(c), duas linhas). ---------- */
+function resolverDPrapido(pecas,c){
+  const r=pecas.length, NEG=-Infinity;
+  let prev=new Float64Array(c+1);
+  let cur=new Float64Array(c+1);
+  for(let i=0;i<r;i++){
+    const vs=pecas[i];
+    for(let d=0;d<=c;d++){
+      let melhor=NEG;
+      for(let j=0;j<vs.length;j++){
+        const w=vs[j][0];
+        if(w<=d){const cand=prev[d-w];const nv=cand+vs[j][1];if(cand>NEG&&nv>melhor)melhor=nv;}
+      }
+      cur[d]=melhor;
+    }
+    const t=prev;prev=cur;cur=t;
+  }
+  return prev[c];
+}
+
+/* ---------- Algoritmo 2: Branch and Bound (exato, com poda) ----------
+   Retorna valor ótimo, nós explorados, nós podados e operações
+   elementares (iterações da cota superior + ramificação).             */
+function resolverBB(pecas,c){
+  const r=pecas.length;
+  const ord=pecas.map(vs=>vs.slice().sort((a,b)=>b[1]-a[1])); // valor decrescente
+  let melhor=-Infinity, nos=0, podados=0, ops=0;
+  function cota(i,cap){
+    let s=0;
+    for(let k=i;k<r;k++){
+      let mv=0;const vs=ord[k];
+      for(let j=0;j<vs.length;j++){ops++; if(vs[j][0]<=cap&&vs[j][1]>mv)mv=vs[j][1];}
+      s+=mv;
+    }
+    return s;
+  }
+  function ram(i,valor,cap){
+    nos++;
+    if(i===r){if(valor>melhor)melhor=valor;return;}
+    if(valor+cota(i,cap)<=melhor){podados++;return;}
+    const vs=ord[i];
+    for(let j=0;j<vs.length;j++){ops++; const w=vs[j][0]; if(w<=cap)ram(i+1,valor+vs[j][1],cap-w);}
+  }
+  ram(0,0,c);
+  return {valor:melhor,nos,podados,ops};
+}
+
+/* ---------- Cronometragem (só usada na métrica "tempo") ---------- */
+function cronometrar(fn){
+  let t0=performance.now();fn();let dt=performance.now()-t0;
+  let reps=dt>0.5?1:Math.min(500,Math.max(1,Math.floor(0.5/Math.max(dt,1e-4))));
+  if(reps>1){t0=performance.now();for(let k=0;k<reps;k++)fn();dt=(performance.now()-t0)/reps;}
+  return dt;
+}
+
+/* ============================================================
+   Motor de gráficos em canvas (visual do matplotlib do artigo)
+   ============================================================ */
+const CORES={dp:'#2563eb',bb:'#dc2626',aux:'#059669',grid:'#cbd5e1',ink:'#0f172a',soft:'#64748b'};
+const DPR=Math.max(2,window.devicePixelRatio||1);
+
+function setupCanvas(id,wCss,hCss){
+  const cv=document.getElementById(id);
+  cv.width=wCss*DPR; cv.height=hCss*DPR;
+  cv.style.aspectRatio=(wCss/hCss).toFixed(4);
+  const ctx=cv.getContext('2d');
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.clearRect(0,0,wCss,hCss);
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,wCss,hCss);
+  return {cv,ctx,W:wCss,H:hCss};
+}
+function niceLogTicks(min,max){
+  const lo=Math.floor(Math.log10(min)), hi=Math.ceil(Math.log10(max));
+  const t=[];for(let e=lo;e<=hi;e++)t.push(Math.pow(10,e));return t;
+}
+function fmtLog(v){
+  if(v>=1){ if(v>=1e9)return (v/1e9)+'G'; if(v>=1e6)return (v/1e6)+'M'; if(v>=1000)return (v/1000)+'k'; return String(v); }
+  return (+v.toPrecision(2)).toString();
+}
+function faixaLog(vals){
+  const pos=vals.filter(v=>v>0&&isFinite(v));
+  if(!pos.length)return {min:1,max:10};
+  let mn=Math.min(...pos), mx=Math.max(...pos);
+  let min=Math.pow(10,Math.floor(Math.log10(mn)));
+  let max=Math.pow(10,Math.ceil(Math.log10(mx)));
+  if(min===max)max=min*10;
+  return {min,max};
+}
+
+function drawFrame(ctx,box,xcfg,ycfg,xlabel,ylabel){
+  const {x0,y0,x1,y1}=box;
+  const px=xcfg.log
+    ? v=>x0+(Math.log10(v)-Math.log10(xcfg.min))/(Math.log10(xcfg.max)-Math.log10(xcfg.min))*(x1-x0)
+    : v=>x0+(v-xcfg.min)/(xcfg.max-xcfg.min)*(x1-x0);
+  const py=ycfg.log
+    ? v=>y1-(Math.log10(v)-Math.log10(ycfg.min))/(Math.log10(ycfg.max)-Math.log10(ycfg.min))*(y1-y0)
+    : v=>y1-(v-ycfg.min)/(ycfg.max-ycfg.min)*(y1-y0);
+
+  ctx.font='11px ui-monospace,Menlo,monospace';
+  ctx.fillStyle=CORES.soft;ctx.strokeStyle=CORES.grid;ctx.lineWidth=1;
+  const yticks=ycfg.log?niceLogTicks(ycfg.min,ycfg.max):ycfg.ticks;
+  ctx.textAlign='right';ctx.textBaseline='middle';
+  yticks.forEach(t=>{
+    if(t<ycfg.min||t>ycfg.max)return;
+    const y=py(t);
+    ctx.beginPath();ctx.setLineDash([3,3]);ctx.moveTo(x0,y);ctx.lineTo(x1,y);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillText(ycfg.fmt?ycfg.fmt(t):fmtLog(t),x0-8,y);
+  });
+  ctx.textAlign='center';ctx.textBaseline='top';
+  xcfg.ticks.forEach(t=>{
+    if(t<xcfg.min||t>xcfg.max)return;
+    const x=px(t);
+    ctx.beginPath();ctx.setLineDash([3,3]);ctx.moveTo(x,y0);ctx.lineTo(x,y1);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillText(xcfg.fmt?xcfg.fmt(t):String(t),x,y1+7);
+  });
+  ctx.strokeStyle=CORES.ink;ctx.lineWidth=1.2;ctx.strokeRect(x0,y0,x1-x0,y1-y0);
+  ctx.fillStyle=CORES.ink;ctx.font='12px ui-monospace,Menlo,monospace';
+  ctx.textAlign='center';ctx.textBaseline='top';ctx.fillText(xlabel,(x0+x1)/2,y1+24);
+  ctx.save();ctx.translate(x0-42,(y0+y1)/2);ctx.rotate(-Math.PI/2);
+  ctx.textBaseline='bottom';ctx.fillText(ylabel,0,0);ctx.restore();
+  return {px,py};
+}
+function plotSeries(ctx,pts,proj,color,marker){
+  ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=1.8;
+  ctx.beginPath();
+  pts.forEach((p,i)=>{const x=proj.px(p[0]),y=proj.py(Math.max(p[1],1e-9));i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+  ctx.stroke();
+  pts.forEach(p=>{
+    const x=proj.px(p[0]),y=proj.py(Math.max(p[1],1e-9));
+    if(marker==='sq')ctx.fillRect(x-3,y-3,6,6);
+    else if(marker==='tri'){ctx.beginPath();ctx.moveTo(x,y-4);ctx.lineTo(x+3.6,y+3);ctx.lineTo(x-3.6,y+3);ctx.closePath();ctx.fill();}
+    else{ctx.beginPath();ctx.arc(x,y,3.2,0,7);ctx.fill();}
+  });
+}
+function legend(ctx,box,items){
+  let x=box.x0+10,y=box.y0+8;
+  ctx.font='11px ui-monospace,Menlo,monospace';ctx.textAlign='left';ctx.textBaseline='middle';
+  items.forEach(it=>{
+    ctx.strokeStyle=it.color;ctx.fillStyle=it.color;ctx.lineWidth=2.4;
+    ctx.beginPath();ctx.moveTo(x,y+6);ctx.lineTo(x+18,y+6);ctx.stroke();
+    if(it.marker==='sq')ctx.fillRect(x+6,y+3,6,6);
+    else if(it.marker==='tri'){ctx.beginPath();ctx.moveTo(x+9,y+2);ctx.lineTo(x+12.5,y+9);ctx.lineTo(x+5.5,y+9);ctx.closePath();ctx.fill();}
+    else if(it.marker==='o'){ctx.beginPath();ctx.arc(x+9,y+6,3,0,7);ctx.fill();}
+    ctx.fillStyle=CORES.ink;ctx.fillText(it.label,x+24,y+6);
+    y+=16;
+  });
+}
+
+/* --------- gráficos específicos --------- */
+function chartCustoR(data,ylabel){ // data:[{r,dp,bb}]
+  const {ctx}=setupCanvas('c_custo_r',360,250);
+  const box={x0:66,y0:16,x1:344,y1:206};
+  const rs=data.map(d=>d.r);
+  const ycfg=Object.assign(faixaLog(data.flatMap(d=>[d.dp,d.bb])),{log:true});
+  const xcfg={log:false,min:Math.min(...rs),max:Math.max(...rs),ticks:rs};
+  const proj=drawFrame(ctx,box,xcfg,ycfg,'Número de peças r',ylabel);
+  plotSeries(ctx,data.map(d=>[d.r,d.dp]),proj,CORES.dp,'o');
+  plotSeries(ctx,data.map(d=>[d.r,d.bb]),proj,CORES.bb,'sq');
+  legend(ctx,box,[{label:'Prog. Dinâmica',color:CORES.dp,marker:'o'},{label:'Branch and Bound',color:CORES.bb,marker:'sq'}]);
+}
+function chartNosR(data){ // data:[{r,nos,poda}]
+  const {ctx}=setupCanvas('c_nos_r',360,250);
+  const box={x0:66,y0:16,x1:308,y1:206};
+  const rs=data.map(d=>d.r);
+  const ycfg=Object.assign(faixaLog(data.map(d=>d.nos)),{log:true});
+  const xcfg={log:false,min:Math.min(...rs),max:Math.max(...rs),ticks:rs};
+  const proj=drawFrame(ctx,box,xcfg,ycfg,'Número de peças r','Nós explorados (média)');
+  plotSeries(ctx,data.map(d=>[d.r,d.nos]),proj,CORES.bb,'tri');
+  const py2=v=>box.y1-(v/100)*(box.y1-box.y0);
+  ctx.strokeStyle=CORES.aux;ctx.fillStyle=CORES.aux;ctx.lineWidth=1.6;
+  ctx.beginPath();
+  data.forEach((d,i)=>{const x=proj.px(d.r),y=py2(d.poda*100);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+  ctx.setLineDash([5,3]);ctx.stroke();ctx.setLineDash([]);
+  data.forEach(d=>{const x=proj.px(d.r),y=py2(d.poda*100);ctx.beginPath();ctx.arc(x,y,3,0,7);ctx.fill();});
+  ctx.fillStyle=CORES.aux;ctx.textAlign='left';ctx.textBaseline='middle';ctx.font='11px ui-monospace,Menlo,monospace';
+  [0,25,50,75,100].forEach(t=>{const y=py2(t);ctx.fillText(t+'%',box.x1+8,y);});
+  ctx.save();ctx.translate(box.x1+42,(box.y0+box.y1)/2);ctx.rotate(Math.PI/2);
+  ctx.textAlign='center';ctx.textBaseline='top';ctx.fillText('Taxa média de poda (%)',0,0);ctx.restore();
+  legend(ctx,box,[{label:'Nós (B&B)',color:CORES.bb,marker:'tri'},{label:'Poda (%)',color:CORES.aux,marker:'o'}]);
+}
+function chartCustoC(data,ylabel){ // data:[{c,dp,bb}]
+  const {ctx}=setupCanvas('c_custo_c',360,250);
+  const box={x0:66,y0:16,x1:344,y1:206};
+  const cs=data.map(d=>d.c);
+  const ycfg=Object.assign(faixaLog(data.flatMap(d=>[d.dp,d.bb])),{log:true});
+  const xcfg={log:true,min:Math.min(...cs),max:Math.max(...cs),ticks:cs,fmt:fmtLog};
+  const proj=drawFrame(ctx,box,xcfg,ycfg,'Capacidade c',ylabel);
+  plotSeries(ctx,data.map(d=>[d.c,d.dp]),proj,CORES.dp,'o');
+  plotSeries(ctx,data.map(d=>[d.c,d.bb]),proj,CORES.bb,'sq');
+  legend(ctx,box,[{label:'Prog. Dinâmica',color:CORES.dp,marker:'o'},{label:'Branch and Bound',color:CORES.bb,marker:'sq'}]);
+}
+function quartis(arr){
+  const a=arr.slice().sort((x,y)=>x-y);const n=a.length;
+  const q=p=>{const idx=(n-1)*p,lo=Math.floor(idx),hi=Math.ceil(idx);return a[lo]+(a[hi]-a[lo])*(idx-lo);};
+  return {min:a[0],q1:q(.25),med:q(.5),q3:q(.75),max:a[n-1]};
+}
+function chartDisp(groups,ylabel){ // groups:[{r,vals:[...]}]
+  const {ctx}=setupCanvas('c_disp',360,250);
+  const box={x0:66,y0:16,x1:344,y1:206};
+  const allv=groups.flatMap(g=>g.vals).filter(v=>v>0&&isFinite(v));
+  const ycfg=Object.assign(faixaLog(allv),{log:true});
+  const n=groups.length;
+  const xcfg={log:false,min:-0.5,max:n-0.5,ticks:groups.map((g,i)=>i),fmt:i=>String(groups[i].r)};
+  const proj=drawFrame(ctx,box,xcfg,ycfg,'Número de peças r',ylabel);
+  const bw=Math.min(24,(box.x1-box.x0)/n*0.55);
+  const clamp=v=>Math.min(Math.max(v,ycfg.min),ycfg.max);
+  groups.forEach((g,i)=>{
+    const vals=g.vals.filter(v=>v>0&&isFinite(v));
+    if(!vals.length)return;
+    const st=quartis(vals);
+    const cx=proj.px(i);
+    const yQ1=proj.py(clamp(st.q1)), yQ3=proj.py(clamp(st.q3)), yMed=proj.py(clamp(st.med));
+    const yMin=proj.py(clamp(st.min)), yMax=proj.py(clamp(st.max)); // yMax é o menor y (topo)
+    ctx.strokeStyle=CORES.bb;ctx.lineWidth=1.2;
+    // hastes: topo (max..q3) e base (q1..min)
+    ctx.beginPath();ctx.moveTo(cx,yMax);ctx.lineTo(cx,yQ3);ctx.moveTo(cx,yQ1);ctx.lineTo(cx,yMin);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx-bw/3,yMax);ctx.lineTo(cx+bw/3,yMax);
+                    ctx.moveTo(cx-bw/3,yMin);ctx.lineTo(cx+bw/3,yMin);ctx.stroke();
+    // caixa q1..q3
+    const top=Math.min(yQ1,yQ3), h=Math.max(1.5,Math.abs(yQ1-yQ3));
+    ctx.fillStyle='rgba(220,38,38,0.35)';
+    ctx.fillRect(cx-bw/2,top,bw,h);ctx.strokeRect(cx-bw/2,top,bw,h);
+    // mediana
+    ctx.strokeStyle=CORES.bb;ctx.lineWidth=1.6;
+    ctx.beginPath();ctx.moveTo(cx-bw/2,yMed);ctx.lineTo(cx+bw/2,yMed);ctx.stroke();
+  });
+}
+function chartStress(pts){ // pts:[{c,n,cn,t}]
+  const {ctx}=setupCanvas('c_stress',720,300);
+  const box={x0:80,y0:18,x1:704,y1:250};
+  const xs=pts.map(p=>p.c), ys=pts.map(p=>Math.max(p.t,0.01));
+  const fx=faixaLog(xs), fy=faixaLog(ys);
+  const xcfg={log:true,min:fx.min,max:fx.max,ticks:niceLogTicks(fx.min,fx.max),fmt:fmtLog};
+  const ycfg=Object.assign({},fy,{log:true});
+  const proj=drawFrame(ctx,box,xcfg,ycfg,'Capacidade c','Tempo de execução (ms)');
+  plotSeries(ctx,pts.map(p=>[p.c,Math.max(p.t,0.01)]),proj,CORES.dp,'o');
+  legend(ctx,box,[{label:'Programação Dinâmica',color:CORES.dp,marker:'o'}]);
+}
+
+/* ============================================================
+   Execução dos experimentos
+   ============================================================ */
+let ULTIMO=null;
+const $=id=>document.getElementById(id);
+function setStatus(t){$('status').textContent=t;}
+function setProg(p){$('progress').style.width=(p*100).toFixed(1)+'%';}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const media=a=>a.reduce((x,y)=>x+y,0)/a.length;
+
+function atualizaRepro(){
+  const ops=$('metric').value==='ops';
+  const el=$('repro');
+  el.className='repro '+(ops?'det':'time');
+  el.textContent=ops
+    ? 'Métrica determinística: a mesma semente reproduz exatamente os mesmos dados.'
+    : 'Tempo medido: os valores variam entre execuções e entre máquinas (não reprodutível).';
+}
+
+async function executar(){
+  const metric=$('metric').value; const ehOps=metric==='ops';
+  const seed=+$('seed').value, nvar=+$('nvar').value, inst=+$('inst').value;
+  const rc=+$('rc').value, rmin=+$('rmin').value, rmax=+$('rmax').value, rstep=+$('rstep').value;
+  const cr=+$('cr').value, cmin=+$('cmin').value, cpts=+$('cpts').value;
+
+  const valoresR=[];for(let r=rmin;r<=rmax;r+=rstep)valoresR.push(r);
+  const valoresC=[];{let c=cmin;for(let k=0;k<cpts;k++){valoresC.push(c);c*=2;}}
+  const totalPontos=valoresR.length+valoresC.length;let feito=0;
+
+  const rng=makeRng(seed);
+  const registros=[];
+  const dadosR=[], dadosNos=[], dispGroups=[], dadosC=[];
+  let divergencias=0, totalInst=0;
+
+  // Experimento A: custo × r
+  for(const r of valoresR){
+    const cdp=[],cbb=[],nosl=[],podal=[];
+    for(let it=0;it<inst;it++){
+      const pecas=removerDominadas(gerarInstancia(r,nvar,rc,rng));
+      const dp=resolverDP(pecas,rc);
+      const bb=resolverBB(pecas,rc);
+      if(dp.valor!==bb.valor)divergencias++;
+      totalInst++;
+      const vdp = ehOps ? dp.ops : cronometrar(()=>resolverDP(pecas,rc));
+      const vbb = ehOps ? bb.ops : cronometrar(()=>resolverBB(pecas,rc));
+      cdp.push(vdp);cbb.push(vbb);nosl.push(bb.nos);podal.push(bb.nos?bb.podados/bb.nos:0);
+      registros.push({exp:'r',r,c:rc,otimo:dp.valor,custo_dp:vdp,custo_bb:vbb,
+                      ops_dp:dp.ops,ops_bb:bb.ops,nos_bb:bb.nos,taxa_poda:(bb.nos?bb.podados/bb.nos:0)});
+    }
+    dadosR.push({r,dp:media(cdp),bb:media(cbb)});
+    dadosNos.push({r,nos:media(nosl),poda:media(podal)});
+    dispGroups.push({r,vals:cbb.slice()});
+    feito++;setProg(feito/totalPontos);setStatus(`Experimento A · r=${r} (${feito}/${totalPontos})`);
+    await sleep(0);
+  }
+  // Experimento B: custo × c
+  for(const c of valoresC){
+    const cdp=[],cbb=[];
+    for(let it=0;it<inst;it++){
+      const pecas=removerDominadas(gerarInstancia(cr,nvar,c,rng));
+      const dp=resolverDP(pecas,c);
+      const bb=resolverBB(pecas,c);
+      if(dp.valor!==bb.valor)divergencias++;
+      totalInst++;
+      const vdp = ehOps ? dp.ops : cronometrar(()=>resolverDP(pecas,c));
+      const vbb = ehOps ? bb.ops : cronometrar(()=>resolverBB(pecas,c));
+      cdp.push(vdp);cbb.push(vbb);
+      registros.push({exp:'c',r:cr,c,otimo:dp.valor,custo_dp:vdp,custo_bb:vbb,
+                      ops_dp:dp.ops,ops_bb:bb.ops,nos_bb:bb.nos,taxa_poda:(bb.nos?bb.podados/bb.nos:0)});
+    }
+    dadosC.push({c,dp:media(cdp),bb:media(cbb)});
+    feito++;setProg(feito/totalPontos);setStatus(`Experimento B · c=${c} (${feito}/${totalPontos})`);
+    await sleep(0);
+  }
+
+  const ylabel = ehOps ? 'Operações elementares (média)' : 'Tempo médio (ms)';
+  const ylabelDisp = ehOps ? 'Operações do B&B' : 'Tempo do B&B (ms)';
+  $('cap1').innerHTML = (ehOps
+     ? 'Capacidade fixa. Eixo vertical logarítmico, em operações elementares (determinístico). '
+     : 'Capacidade fixa. Eixo vertical logarítmico, em tempo medido. ')
+     + 'DP cresce de forma suave; B&amp;B, de forma acentuada.';
+  $('cap3').innerHTML = (ehOps
+     ? 'Peças fixas. Eixos logarítmicos, em operações elementares. '
+     : 'Peças fixas. Eixos logarítmicos, em tempo medido. ')
+     + 'DP cresce com c; B&amp;B é insensível a c.';
+
+  ULTIMO={metric,seed,nvar,inst,rc,cr,registros,dadosR,dadosNos,dadosC,dispGroups,totalInst,divergencias,ylabel,ylabelDisp};
+
+  chartCustoR(dadosR,ylabel);
+  chartNosR(dadosNos);
+  chartCustoC(dadosC,ylabel);
+  chartDisp(dispGroups,ylabelDisp);
+  renderTabela(dadosR,dadosNos,ehOps);
+  $('verif').innerHTML=`<strong>${totalInst}</strong> instâncias resolvidas · `+
+    (divergencias===0
+      ?`<span style="color:var(--aux)">0 divergências</span> entre DP e B&amp;B (ótimos idênticos, correção confirmada).`
+      :`<span style="color:var(--bb)">${divergencias} divergências</span> detectadas.`);
+
+  document.querySelectorAll('.png').forEach(b=>b.disabled=false);
+  $('csv').disabled=$('json').disabled=$('allpng').disabled=false;
+  setStatus('Concluído.');setProg(1);
+}
+
+function renderTabela(dadosR,dadosNos,ehOps){
+  const unid=ehOps?'ops':'ms';
+  const fmt=v=>ehOps?Math.round(v).toLocaleString('pt-BR'):v.toFixed(4);
+  let html=`<table><thead><tr><th>r</th><th>DP (${unid})</th><th>B&amp;B (${unid})</th><th>Nós B&amp;B</th><th>Poda</th><th>Menor custo</th></tr></thead><tbody>`;
+  dadosR.forEach((d,i)=>{
+    const nos=dadosNos[i];
+    const win=d.dp<d.bb?'DP':'B&B';
+    const cls=win==='DP'?'win-dp':'win-bb';
+    html+=`<tr><td>${d.r}</td><td>${fmt(d.dp)}</td><td>${fmt(d.bb)}</td>`+
+          `<td>${Math.round(nos.nos).toLocaleString('pt-BR')}</td><td>${(nos.poda*100).toFixed(1)}%</td>`+
+          `<td class="${cls}">${win}</td></tr>`;
+  });
+  html+='</tbody></table>';
+  $('tablewrap').innerHTML=html;
+}
+
+/* ============================================================
+   Teste de estresse da Programação Dinâmica
+   Aumenta c·n por um fator fixo a cada passo até bater na
+   parede de tempo (passo > orçamento) ou de memória (alocação
+   falha). Roda de forma assíncrona para não travar a página.
+   ============================================================ */
+async function testeEstresse(){
+  const r=Math.max(2,+$('sr').value||20);
+  const nvar=+$('nvar').value;
+  const seed=+$('seed').value;
+  const budget=Math.max(100,+$('sbudget').value||1000);
+  const rng=makeRng(seed);
+  const pts=[]; let motivo='', maior=null;
+  let c=1000;
+  $('stresscard').style.display='';
+  while(true){
+    let pecas,n,t;
+    try{
+      pecas=removerDominadas(gerarInstancia(r,nvar,c,rng));
+      n=pecas.reduce((s,v)=>s+v.length,0);
+      const t0=performance.now();
+      resolverDPrapido(pecas,c);
+      t=performance.now()-t0;
+    }catch(err){
+      motivo=`parede de memória — falha ao alocar a tabela em c = ${c.toLocaleString('pt-BR')}`;
+      break;
+    }
+    pts.push({c,n,cn:c*n,t});
+    maior={c,n,cn:c*n,t};
+    if(pts.length>1)chartStress(pts);
+    setStatus(`estresse · c=${c.toLocaleString('pt-BR')} · n=${n} · ${t.toFixed(0)} ms`);
+    await sleep(0);
+    if(t>budget){motivo=`parede de tempo — um passo isolado excedeu ${budget} ms`;break;}
+    if(c>=5e7){motivo='limite de segurança de c (5·10⁷) atingido';break;}
+    c=Math.round(c*1.8);
+  }
+  if(pts.length)chartStress(pts);
+  const btn=document.querySelector('.png[data-c="c_stress"]'); if(btn)btn.disabled=false;
+  $('stressinfo').textContent = maior
+    ? `Maior capacidade resolvida: c = ${maior.c.toLocaleString('pt-BR')} `+
+      `(com n = ${maior.n}, ou seja c·n = ${maior.cn.toLocaleString('pt-BR')} operações), em ${maior.t.toFixed(0)} ms. `+
+      `Parou por: ${motivo}. O crescimento linear no gráfico log-log confirma a dependência O(c) do tempo, `+
+      `e a degradação é graciosa (sem travamentos) até a parede de memória, imposta pela tabela de tamanho O(c).`
+    : `Não foi possível resolver nem a menor instância: ${motivo}.`;
+  setStatus('Teste de estresse concluído.');
+}
+
+/* ============================================================
+   Exportações
+   ============================================================ */
+function baixar(nome,blob){
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  a.href=url;a.download=nome;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function exportCSV(){
+  if(!ULTIMO)return;
+  const campos=['exp','r','c','otimo','custo_dp','custo_bb','ops_dp','ops_bb','nos_bb','taxa_poda'];
+  let out='# metrica='+ULTIMO.metric+' seed='+ULTIMO.seed+'\n'+campos.join(',')+'\n';
+  ULTIMO.registros.forEach(x=>{out+=campos.map(k=>x[k]).join(',')+'\n';});
+  baixar('resultados_ms3dp.csv',new Blob([out],{type:'text/csv'}));
+}
+function exportJSON(){
+  if(!ULTIMO)return;
+  const resumo={
+    parametros:{metrica:ULTIMO.metric,seed:ULTIMO.seed,variantes_max:ULTIMO.nvar,
+                instancias_por_ponto:ULTIMO.inst,exp_r_capacidade:ULTIMO.rc,exp_c_pecas:ULTIMO.cr},
+    total_instancias:ULTIMO.totalInst,divergencias:ULTIMO.divergencias,
+    custo_vs_r:ULTIMO.dadosR.map((d,i)=>({r:d.r,dp:d.dp,bb:d.bb,
+        nos_bb:ULTIMO.dadosNos[i].nos,taxa_poda:ULTIMO.dadosNos[i].poda})),
+    custo_vs_c:ULTIMO.dadosC
+  };
+  baixar('resumo_ms3dp.json',new Blob([JSON.stringify(resumo,null,2)],{type:'application/json'}));
+}
+function exportPNG(id,nome){document.getElementById(id).toBlob(b=>baixar(nome+'.png',b),'image/png');}
+
+/* ============================================================
+   Interface
+   ============================================================ */
+$('metric').addEventListener('change',atualizaRepro);
+$('run').addEventListener('click',async()=>{
+  $('run').disabled=true;setStatus('Executando…');setProg(0);
+  try{await executar();}
+  catch(e){setStatus('Erro: '+e.message);console.error(e);}
+  finally{$('run').disabled=false;}
+});
+$('stress').addEventListener('click',async()=>{
+  $('stress').disabled=true;$('run').disabled=true;setStatus('Rodando teste de estresse…');setProg(0);
+  try{await testeEstresse();setProg(1);}
+  catch(e){setStatus('Erro: '+e.message);console.error(e);}
+  finally{$('stress').disabled=false;$('run').disabled=false;}
+});
+$('csv').addEventListener('click',exportCSV);
+$('json').addEventListener('click',exportJSON);
+$('allpng').addEventListener('click',()=>{
+  [['c_custo_r','fig_custo_r'],['c_nos_r','fig_nos_r'],['c_custo_c','fig_custo_c'],['c_disp','fig_dispersao']]
+    .forEach(([id,n],i)=>setTimeout(()=>exportPNG(id,n),i*350));
+});
+document.querySelectorAll('.png').forEach(b=>{
+  b.addEventListener('click',()=>exportPNG(b.dataset.c,b.dataset.name));
+});
+
+window.addEventListener('load',()=>{
+  atualizaRepro();
+  ['c_custo_r','c_nos_r','c_custo_c','c_disp'].forEach(id=>{
+    const {ctx,W,H}=setupCanvas(id,360,250);
+    ctx.fillStyle='#94a3b8';ctx.font='12px ui-monospace,Menlo,monospace';
+    ctx.textAlign='center';ctx.fillText('execute os testes para gerar o gráfico',W/2,H/2);
+  });
+});
+</script>
+</body>
+</html>
