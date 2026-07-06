@@ -53,7 +53,7 @@ Nenhuma instalação, servidor ou conexão é necessária.
 
 ## Licença
 
-Sugestão: [MIT](https://opensource.org/licenses/MIT). Ajuste conforme sua preferência.
+[MIT](https://opensource.org/licenses/MIT). 
 
 ## Autores
 
